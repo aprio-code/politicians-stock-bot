@@ -4,10 +4,8 @@ import requests
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# Endpoint alternativo non bloccato da GitHub Actions
-ALT_TRADES_URL = "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json"
-# Backup API (House stock watcher via API proxy)
-PROXY_API_URL = "https://raw.githubusercontent.com/isabelle-dr/house-stock-watcher-data/main/data/all_transactions.json"
+# Endpoint API aggiornato e accessibile da GitHub Actions
+DATA_URL = "https://raw.githubusercontent.com/house-stock-watcher/house-stock-watcher-data/main/data/all_transactions.json"
 
 def send_telegram_alert(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -34,18 +32,13 @@ def fetch_and_analyze_trades():
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
     }
     
-    # Prova prima dal mirror GitHub
-    response = requests.get(PROXY_API_URL, headers=headers, timeout=15)
-    
-    if response.status_code != 200:
-        print(f"Mirror fallito ({response.status_code}), provo S3...")
-        response = requests.get(ALT_TRADES_URL, headers=headers, timeout=15)
-
-    if response.status_code != 200:
-        print(f"❌ Impossibile scaricare i dati. Codice errore: {response.status_code}")
-        return
-
     try:
+        response = requests.get(DATA_URL, headers=headers, timeout=20)
+        
+        if response.status_code != 200:
+            print(f"❌ Errore download API: {response.status_code}")
+            return
+
         trades = response.json()
         print(f"✅ Dati scaricati con successo ({len(trades)} record trovati). Invio primi 3 su Telegram...")
         
