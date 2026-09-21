@@ -4,8 +4,8 @@ import requests
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# Endpoint API aggiornato e accessibile da GitHub Actions
-DATA_URL = "https://raw.githubusercontent.com/house-stock-watcher/house-stock-watcher-data/main/data/all_transactions.json"
+# Endpoint ufficiale e stabile per le transazioni del SENATO USA su GitHub
+SENATE_URL = "https://raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data/master/aggregate/all_transactions.json"
 
 def send_telegram_alert(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -26,15 +26,21 @@ def send_telegram_alert(message):
         print(f"Errore invio Telegram: {e}")
 
 def fetch_and_analyze_trades():
-    print("Download dati in corso...")
+    print("Download dati in corso dal Senato USA...")
     
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
     }
     
     try:
-        response = requests.get(DATA_URL, headers=headers, timeout=20)
+        # Tenta il download
+        response = requests.get(SENATE_URL, headers=headers, timeout=20)
         
+        # Se il ramo 'master' non esiste (404), tenta con il ramo 'main'
+        if response.status_code == 404:
+            fallback_url = SENATE_URL.replace("master", "main")
+            response = requests.get(fallback_url, headers=headers, timeout=20)
+
         if response.status_code != 200:
             print(f"❌ Errore download API: {response.status_code}")
             return
@@ -43,7 +49,8 @@ def fetch_and_analyze_trades():
         print(f"✅ Dati scaricati con successo ({len(trades)} record trovati). Invio primi 3 su Telegram...")
         
         for trade in trades[:3]:
-            representative = trade.get("representative", "Sconosciuto")
+            # I dati del senato usano la chiave 'senator' invece di 'representative'
+            politician = trade.get("senator", "Sconosciuto")
             ticker = trade.get("ticker", "N/A")
             type_trade = trade.get("type", "N/A")
             amount = trade.get("amount", "N/A")
@@ -51,8 +58,8 @@ def fetch_and_analyze_trades():
             transaction_date = trade.get("transaction_date", "N/A")
 
             message = (
-                f"🚨 *NUOVA TRANSAZIONE POLITICO USA* 🚨\n\n"
-                f"👤 *Politico:* {representative}\n"
+                f"🚨 *NUOVA TRANSAZIONE SENATO USA* 🚨\n\n"
+                f"👤 *Senatore:* {politician}\n"
                 f"📈 *Ticker:* `{ticker}`\n"
                 f"🔄 *Operazione:* {type_trade.upper()}\n"
                 f"💰 *Importo:* {amount}\n"
